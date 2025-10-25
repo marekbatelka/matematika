@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 # ----------------------------------------------------------------------
-MULT_MAX = 10          # faktory násobení (1‑10)
-DIV_MAX = 10           # dělitel i výsledek dělení (1‑10)
+MULT_MAX = 7          # faktory násobení (1‑10)
+DIV_MAX = 7           # dělitel i výsledek dělení (1‑10)
+MAX_DIVIDEND = 70          # globální omezení pro dividend při dělení
 DATA_FILE = Path("procvicovani_data.json")
 # ----------------------------------------------------------------------
 
@@ -21,19 +22,23 @@ def save_data(data: dict) -> None:
     with DATA_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-
 def build_question_pool() -> list[tuple[int, int, str]]:
     """Vytvoří seznam všech unikátních otázek a zamíchá jej."""
     pool = []
-    # násobení
+
+    # ------------------- násobení (1‑10 × 1‑10) -------------------
     for a in range(1, MULT_MAX + 1):
         for b in range(1, MULT_MAX + 1):
             pool.append((a, b, "*"))
-    # dělení – výsledek 1‑10, dělitel 1‑10
-    for divisor in range(1, DIV_MAX + 1):
-        for quotient in range(1, DIV_MAX + 1):
+
+    # ------------------- dělení (výsledek 1‑10, dělitel 1‑10) -------------------
+    # dividend = dělitel * výsledek, ale nesmí překročit MAX_DIVIDEND
+    for divisor in range(1, DIV_MAX + 1):          # dělitel 1‑10
+        for quotient in range(1, DIV_MAX + 1):     # výsledek 1‑10
             dividend = divisor * quotient
-            pool.append((dividend, divisor, "/"))
+            if dividend <= MAX_DIVIDEND:          # omezení na 70
+                pool.append((dividend, divisor, "/"))
+
     random.shuffle(pool)
     return pool
 
@@ -51,39 +56,62 @@ def evaluate(a: int, b: int, op: str, answer: float) -> bool:
 def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
     """
     Vrací (správně?, ukončit?).
-    Ukončení zadáním **e** (dříve bylo k).
+
+    - Pokud uživatel zadá prázdný řetězec (stiskne jen Enter), otázka se
+      zobrazí znovu a žádný pokus ani čas se neukládá.
+    - Ukončení zadáním 'e'.
     """
     correct_val = (a * b) if op == "*" else (a // b)
 
-    raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "e":
-        return False, True
-    try:
-        first = float(raw)
-    except ValueError:
-        print("❌ Neplatná odpověď.")
-        first = None
+    # --------------------------------------------------------------
+    # vnitřní funkce, která získá odpověď a vrátí (odpověď, ukončit?)
+    # --------------------------------------------------------------
+    def get_answer() -> tuple[float | None, bool]:
+        raw = input(f"{a} {op} {b} = ").strip()
+        if raw.lower() == "e":
+            return None, True                     # ukončit
+        if raw == "":                            # prázdná odpověď → opakovat
+            return None, False
+        try:
+            return float(raw), False
+        except ValueError:
+            print("❌ Neplatná odpověď.")
+            return None, False
 
-    if first is not None and evaluate(a, b, op, first):
-        print("✅ Správně!")
-        return True, False
+    # ------------------- první pokus -------------------
+    while True:
+        ans, quit_flag = get_answer()
+        if quit_flag:
+            return False, True
+        if ans is not None:                      # skutečná odpověď → měříme čas
+            start = time.time()
+            if evaluate(a, b, op, ans):
+                print("✅ Správně!")
+                elapsed = time.time() - start
+                return True, False
+            else:
+                elapsed = time.time() - start
+                print("❌ Špatně. Zkus to ještě jednou.")
+                break                           # přejdeme na druhou šanci
+        # pokud ans je None (prázdný řetězec) – cyklus se opakuje bez měření času
 
-    print("❌ Špatně. Zkus to ještě jednou.")
-    raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "e":
-        return False, True
-    try:
-        second = float(raw)
-    except ValueError:
-        print("❌ Neplatná odpověď.")
-        second = None
+    # ------------------- druhá šance -------------------
+    while True:
+        ans, quit_flag = get_answer()
+        if quit_flag:
+            return False, True
+        if ans is not None:
+            start = time.time()
+            if evaluate(a, b, op, ans):
+                print("✅ Správně po druhé šanci!")
+                elapsed = time.time() - start
+                return True, False
+            else:
+                elapsed = time.time() - start
+                print(f"❌ Špatně i podruhé. Správná odpověď je {correct_val}.")
+                return False, False
+        # prázdný řetězec → opět jen znovu požádáme o odpověď
 
-    if second is not None and evaluate(a, b, op, second):
-        print("✅ Správně po druhé šanci!")
-        return True, False
-
-    print(f"❌ Špatně i podruhé. Správná odpověď je {correct_val}.")
-    return False, False
 
 
 def print_summary(data: dict) -> None:
