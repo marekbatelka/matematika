@@ -1,0 +1,32 @@
+{
+  "6*10": {
+    "tries": 1,
+    "correct": 1,
+    "total_time": 3.90142560005188
+  },
+  "10/2": {
+    "tries": 1,
+    "correct": 1,
+    "total_time": 1.7301528453826904
+  },
+  "1*4": {
+    "tries": 1,
+    "correct": 1,
+    "total_time": 1.3527464866638184
+  },
+  "3/6": {
+    "tries": 1,
+    "correct": 1,
+    "total_time": 3.003112316131592
+  },
+  "4/7": {
+    "tries": 1,
+    "correct": 1,
+    "total_time": 0.9630193710327148
+  },
+  "7*6": {
+    "tries": 1,
+    "correct": 0,
+    "total_time": 5.334446668624878
+  }
+}
