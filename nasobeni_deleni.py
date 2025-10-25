@@ -48,11 +48,11 @@ def evaluate(a: int, b: int, op: str, answer: float) -> bool:
 
 
 def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
-    """Vrací (správně?, ukončit?). 'e' ukončí program."""
+    """Vrací (správně?, ukončit?). 'k' ukončí program."""
     correct_val = (a * b) if op == "*" else (a // b)
 
     raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "e":
+    if raw.lower() == "k":
         return False, True
     try:
         first = float(raw)
@@ -66,7 +66,7 @@ def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
 
     print("❌ Špatně. Zkus to ještě jednou.")
     raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "e":
+    if raw.lower() == "k":
         return False, True
     try:
         second = float(raw)
@@ -93,15 +93,42 @@ def print_summary(data: dict):
     else:
         print("Správně: 0")
     print(f"Průměrný čas na otázku: {avg_time:.2f} s")
-    if data:
-        worst = sorted(
-            data.items(),
-            key=lambda kv: (kv[1]["correct"] / kv[1]["tries"], kv[1]["total_time"] / kv[1]["tries"]),
-        )[0]
-        a_str, b_str = worst[0].split("*") if "*" in worst[0] else worst[0].split("/")
-        op = "*" if "*" in worst[0] else "/"
-        print(f"Nejvíce chybovaný příklad: {a_str} {op} {b_str}")
     print("============================\n")
+
+
+def print_detailed_stats(data: dict):
+    """Tabulka se všemi příklady seřazená podle průměrného času (sestupně)."""
+    rows = []
+    for k, v in data.items():
+        a_str, b_str = k.split("*") if "*" in k else k.split("/")
+        op = "*" if "*" in k else "/"
+        tries = v["tries"]
+        correct = v["correct"]
+        success_pct = (correct / tries) * 100 if tries else 0.0
+        avg_time = v["total_time"] / tries if tries else 0.0
+        rows.append(
+            {
+                "example": f"{a_str} {op} {b_str}",
+                "tries": tries,
+                "correct": correct,
+                "success": success_pct,
+                "avg_time": avg_time,
+            }
+        )
+
+    # seřadíme podle průměrného času sestupně
+    rows.sort(key=lambda r: r["avg_time"], reverse=True)
+
+    # výpis jako markdown‑tabulka
+    print("\n### Detailní statistika (seřazeno podle průměrného času)\n")
+    print("| Příklad \t| Pokusů \t| ✅ \t| ~ | Úspěšnost %")
+    print("-----------------------------------------------")
+    for r in rows:
+        print(
+            f"| {r['example']} \t| {r['tries']} \t\t| {r['correct']} \t| "
+            f"{r['avg_time']:.2f} \t|{r['success']:.1f}%  "
+        )
+    print()
 
 
 # ----------------------------------------------------------------------
@@ -115,7 +142,7 @@ if __name__ == "__main__":
         if not question_pool:                 # pool vyčerpán → zamícháme znovu
             question_pool = build_question_pool()
 
-        a, b, op = question_pool.pop()        # vezmeme poslední (náhodný) prvek
+        a, b, op = question_pool.pop()
         start = time.time()
         correct, quit_flag = ask_with_second_chance(a, b, op)
         elapsed = time.time() - start
@@ -129,6 +156,7 @@ if __name__ == "__main__":
 
         if quit_flag:
             print_summary(data)
+            print_detailed_stats(data)   # <‑‑ detailní tabulka
             break
 
     save_data(data)
