@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 # ----------------------------------------------------------------------
-MULT_MAX = 10          # faktory násobení
-DIV_MAX   = 10         # dělitel i výsledek dělení
+MULT_MAX = 10          # faktory násobení (1‑10)
+DIV_MAX = 10           # dělitel i výsledek dělení (1‑10)
 DATA_FILE = Path("procvicovani_data.json")
 # ----------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ def save_data(data: dict) -> None:
 
 
 def build_question_pool() -> list[tuple[int, int, str]]:
-    """Vytvoří seznam všech unikátních otázek."""
+    """Vytvoří seznam všech unikátních otázek a zamíchá jej."""
     pool = []
     # násobení
     for a in range(1, MULT_MAX + 1):
@@ -39,6 +39,7 @@ def build_question_pool() -> list[tuple[int, int, str]]:
 
 
 def key(a: int, b: int, op: str) -> str:
+    """Jedinečný klíč pro slovník."""
     return f"{a // b}/{b}" if op == "/" else f"{a}*{b}"
 
 
@@ -48,11 +49,14 @@ def evaluate(a: int, b: int, op: str, answer: float) -> bool:
 
 
 def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
-    """Vrací (správně?, ukončit?). 'k' ukončí program."""
+    """
+    Vrací (správně?, ukončit?).
+    Ukončení zadáním **e** (dříve bylo k).
+    """
     correct_val = (a * b) if op == "*" else (a // b)
 
     raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "k":
+    if raw.lower() == "e":
         return False, True
     try:
         first = float(raw)
@@ -66,7 +70,7 @@ def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
 
     print("❌ Špatně. Zkus to ještě jednou.")
     raw = input(f"{a} {op} {b} = ").strip()
-    if raw.lower() == "k":
+    if raw.lower() == "e":
         return False, True
     try:
         second = float(raw)
@@ -82,21 +86,27 @@ def ask_with_second_chance(a: int, b: int, op: str) -> tuple[bool, bool]:
     return False, False
 
 
-def print_summary(data: dict):
+def print_summary(data: dict) -> None:
     total = sum(v["tries"] for v in data.values())
     correct = sum(v["correct"] for v in data.values())
     avg_time = (sum(v["total_time"] for v in data.values()) / total) if total else 0.0
+
+    # formát s pevnou šířkou 10 znaků (zarovnání vpravo)
+    def fmt(num):
+        return f"{num:>10}"
+
     print("\n=== Souhrnná statistika ===")
-    print(f"Celkem otázek: {total}")
+    print(f"{'Celkem otázek:':<20}{fmt(total)}")
     if total:
-        print(f"Správně: {correct} ({correct/total*100:.1f}% úspěšnost)")
+        success_pct = correct / total * 100
+        print(f"{'Správně:':<20}{fmt(correct)} ({success_pct:5.1f} %)")
     else:
-        print("Správně: 0")
-    print(f"Průměrný čas na otázku: {avg_time:.2f} s")
-    print("============================\n")
+        print(f"{'Správně:':<20}{fmt(0)}")
+    print(f"{'Průměrný čas:':<20}{fmt(f'{avg_time:.2f} s')}")
+    print("=" * 30 + "\n")
 
 
-def print_detailed_stats(data: dict):
+def print_detailed_stats(data: dict) -> None:
     """Tabulka se všemi příklady seřazená podle průměrného času (sestupně)."""
     rows = []
     for k, v in data.items():
@@ -121,12 +131,12 @@ def print_detailed_stats(data: dict):
 
     # výpis jako markdown‑tabulka
     print("\n### Detailní statistika (seřazeno podle průměrného času)\n")
-    print("| Příklad \t| Pokusů \t| ✅ \t| ~ | Úspěšnost %")
-    print("-----------------------------------------------")
+    print("| Příklad | Pokusů |  ✅  |  %  | ~ čas |")
+    print("|---------|--------|------|-----|-------|")
     for r in rows:
         print(
-            f"| {r['example']} \t| {r['tries']} \t\t| {r['correct']} \t| "
-            f"{r['avg_time']:.2f} \t|{r['success']:.1f}%  "
+            f"| {r['example']:<7} | {r['tries']:<6} |  {r['correct']:<3} | "
+            f"{r['success']:3.0f} | {r['avg_time']:3.0f} \t|"
         )
     print()
 
@@ -156,7 +166,7 @@ if __name__ == "__main__":
 
         if quit_flag:
             print_summary(data)
-            print_detailed_stats(data)   # <‑‑ detailní tabulka
+            print_detailed_stats(data)
             break
 
     save_data(data)
